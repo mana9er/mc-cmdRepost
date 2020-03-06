@@ -8,7 +8,7 @@ class CmdReposter(QtCore.QObject):
     cmd_prefix = '!'
 
     def __init__(self, logger, core):
-        super(CmdReposter, self).__init__()
+        super(CmdReposter, self).__init__(core)
         self.core = core
         self.logger = logger
 
