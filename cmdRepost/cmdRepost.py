@@ -52,12 +52,13 @@ class CmdReposter(QtCore.QObject):
     def tp_request(self, player, text_list):
         self.logger.debug('CmdReposter.tp_request called')
         args = text_list[1:]
+        tp_cmd = '/execute as {} at {} run tp {} '.format(player.name, player.name, player.name)
         if len(args) == 1:
             # tp to player
-            self.core.write_server('/tp {} {}'.format(player.name, args[0]))
+            self.core.write_server(tp_cmd + args[0])
         elif len(args) == 3:
             # tp to coordinate
-            self.core.write_server('/tp {} {} {} {}'.format(player.name, args[0], args[1], args[2]))
+            self.core.write_server(tp_cmd + '{} {} {}'.format(args[0], args[1], args[2]))
         else:
             self.server_tell(player, 'Command not acceptable. Please check again.')
 
