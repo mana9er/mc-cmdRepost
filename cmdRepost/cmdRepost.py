@@ -33,6 +33,8 @@ class CmdReposter(QtCore.QObject):
             'tps': self.ask_tps,
         }
 
+        self.tp_log = {}
+
     def server_say(self, text):
         self.core.write_server('/say {}'.format(text))
 
@@ -55,11 +57,13 @@ class CmdReposter(QtCore.QObject):
             if text_list[0] == self.cmd_prefix + cmd:
                 try:
                     self.cmd_available[cmd](player, text_list)
-                except AttributeError:
+                except AttributeError as err:
                     self.logger.error('Fatal: AttributeError raised.')
+                    print(err)
                     self.server_warn(player, 'cmdRepost internal error raised.')
-                except KeyError:
+                except KeyError as err:
                     self.logger.error('Fatal: KeyError raised.')
+                    print(err)
                     self.server_warn(player, 'cmdRepost internal error raised.')
                 
                 break
@@ -67,8 +71,6 @@ class CmdReposter(QtCore.QObject):
     def tp_request(self, player, text_list):
         self.logger.debug('CmdReposter.tp_request called')
 
-        if not self.tp_log:
-            self.tp_log = {}
         if player.name not in self.tp_log:
             self.tp_log[player.name] = 0
 
@@ -80,7 +82,7 @@ class CmdReposter(QtCore.QObject):
         cur_time = time.time()
         if cur_time - self.tp_log[player.name] < tp_cd:
             remain_sec = tp_cd - (cur_time - self.tp_log[player.name])
-            self.server_tell(player, 'You cannot use tp again until {} seconds later.'.format(str(remain_sec)))
+            self.server_tell(player, 'You cannot use tp again until {:d} seconds later.'.format(int(remain_sec)))
             return
         else:
             self.tp_log[player.name] = cur_time
@@ -105,5 +107,3 @@ class CmdReposter(QtCore.QObject):
                 self.core.write_server('/forge tps')
         else:
             self.server_tell(player, 'Command not acceptable. Please check again.')
-
-
