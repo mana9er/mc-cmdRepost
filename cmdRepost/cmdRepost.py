@@ -30,7 +30,11 @@ class CmdReposter(QtCore.QObject):
         self.cmd_available = {
             'tp': self.tp_request,
             # TODO: tphere
+            'tps': self.ask_tps,
         }
+
+    def server_say(self, text):
+        self.core.write_server('/say {}'.format(text))
 
     def server_tell(self, player, text):
         self.core.write_server('/tellraw {} {}'.format(player.name, json.dumps({'text': text, 'color': 'yellow'})))
@@ -89,6 +93,16 @@ class CmdReposter(QtCore.QObject):
         elif len(args) == 3:
             # tp to coordinate
             self.core.write_server(tp_cmd + '{} {} {}'.format(args[0], args[1], args[2]))
+        else:
+            self.server_tell(player, 'Command not acceptable. Please check again.')
+
+    def ask_tps(self, player, text_list):
+        self.logger.debug('CmdReposter.log_tps called')
+        if len(text_list) == 1:
+            if 'forge' not in self.configs or not self.configs['forge']:
+                return
+            else:
+                self.core.write_server('/forge tps')
         else:
             self.server_tell(player, 'Command not acceptable. Please check again.')
 
