@@ -2,6 +2,7 @@ from PyQt5 import QtCore
 import os
 import time
 import json
+import re
 
 __all__ = ['CmdReposter']
 
@@ -25,6 +26,7 @@ class CmdReposter(QtCore.QObject):
 
         # connect signals and slots
         self.core.notifier.sig_input.connect(self.on_player_input)
+        self.core.sig_server_output.connect(self.on_server_output)
 
         # available commands
         self.cmd_available = {
@@ -34,6 +36,8 @@ class CmdReposter(QtCore.QObject):
         }
 
         self.tp_log = {}
+        self.tps_asked = 0
+        self.tps_asker = None
 
     def server_say(self, text):
         self.core.write_server('/say {}'.format(text))
@@ -43,6 +47,29 @@ class CmdReposter(QtCore.QObject):
 
     def server_warn(self, player, text):
         self.core.write_server('/tellraw {} {}'.format(player.name, json.dumps({'text': text, 'color': 'red'})))
+
+    def check_tp(self, line):
+        match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: (.*)$', line)
+        text = match_obj_1.group(1) if match_obj_1 else ''
+        match_obj_2 = re.match(r'^Teleported (\w+)', text)
+        if match_obj_2:
+            # someone has been teleported
+            player = match_obj_2.group(1)
+            self.logger.debug('CmdReposter.check_tp found player {} was teleported'.format(player))
+            self.tp_log[player] = time.time()  # record latest teleported time
+
+    def check_tps(self, line):
+        if self.tps_asked > 0:
+            self.logger.debug('CmdReposter.tps_asked = {:d}'.format(self.tps_asked))
+            match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: ([^<>]*)$', line)
+            if match_obj_1:
+                self.server_tell(self.tps_asker, match_obj_1.group(1))
+                self.tps_asked -= 1
+
+    def on_server_output(self, lines):
+        for line in lines:
+            self.check_tp(line)
+            self.check_tps(line)
 
     def on_player_input(self, pair):
         self.logger.debug('CmdReposter.on_player_input called')
@@ -71,6 +98,9 @@ class CmdReposter(QtCore.QObject):
     def tp_request(self, player, text_list):
         self.logger.debug('CmdReposter.tp_request called')
 
+        if player.is_console():
+            return
+
         if player.name not in self.tp_log:
             self.tp_log[player.name] = 0
 
@@ -82,10 +112,9 @@ class CmdReposter(QtCore.QObject):
         cur_time = time.time()
         if cur_time - self.tp_log[player.name] < tp_cd:
             remain_sec = tp_cd - (cur_time - self.tp_log[player.name])
+            self.server_tell(player, 'Command tp is now cooling down!')
             self.server_tell(player, 'You cannot use tp again until {:d} seconds later.'.format(int(remain_sec)))
             return
-        else:
-            self.tp_log[player.name] = cur_time
 
         args = text_list[1:]
         tp_cmd = '/execute as {} at {} run tp {} '.format(player.name, player.name, player.name)
@@ -100,10 +129,16 @@ class CmdReposter(QtCore.QObject):
 
     def ask_tps(self, player, text_list):
         self.logger.debug('CmdReposter.log_tps called')
+
+        if player.is_console():
+            return
+        
         if len(text_list) == 1:
             if 'forge' not in self.configs or not self.configs['forge']:
                 return
             else:
                 self.core.write_server('/forge tps')
+                self.tps_asked = 4  # repost the next messages to player
+                self.tps_asker = player
         else:
             self.server_tell(player, 'Command not acceptable. Please check again.')
