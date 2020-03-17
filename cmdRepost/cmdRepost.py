@@ -36,8 +36,8 @@ class CmdReposter(QtCore.QObject):
         }
 
         self.tp_log = {}
-        self.tps_asked = 0
-        self.tps_asker = None
+        self.repost_remained = 0
+        self.repost_receiver = None
 
     def server_say(self, text):
         self.core.write_server('/say {}'.format(text))
@@ -55,21 +55,23 @@ class CmdReposter(QtCore.QObject):
         if match_obj_2:
             # someone has been teleported
             player = match_obj_2.group(1)
-            self.logger.debug('CmdReposter.check_tp found player {} was teleported'.format(player))
+            self.logger.debug('CmdReposter.check_tp found player {} teleported'.format(player))
+            # repost messages to the player
+            self.core.write_server('/tellraw {} {}'.format(player, json.dumps({'text': text, 'color': 'yellow'})))
             self.tp_log[player] = time.time()  # record latest teleported time
 
-    def check_tps(self, line):
-        if self.tps_asked > 0:
-            self.logger.debug('CmdReposter.tps_asked = {:d}'.format(self.tps_asked))
+    def check_repost(self, line):
+        if self.repost_remained > 0:
+            self.logger.debug('CmdReposter.repost_remained = {:d}'.format(self.repost_remained))
             match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: ([^<>]*)$', line)
             if match_obj_1:
-                self.server_tell(self.tps_asker, match_obj_1.group(1))
-                self.tps_asked -= 1
+                self.server_tell(self.repost_receiver, match_obj_1.group(1))
+                self.repost_remained -= 1
 
     def on_server_output(self, lines):
         for line in lines:
             self.check_tp(line)
-            self.check_tps(line)
+            self.check_repost(line)
 
     def on_player_input(self, pair):
         self.logger.debug('CmdReposter.on_player_input called')
@@ -138,7 +140,7 @@ class CmdReposter(QtCore.QObject):
                 return
             else:
                 self.core.write_server('/forge tps')
-                self.tps_asked = 4  # repost the next messages to player
-                self.tps_asker = player
+                self.repost_remained = 4  # repost the next messages to player
+                self.repost_receiver = player
         else:
             self.server_tell(player, 'Command not acceptable. Please check again.')
