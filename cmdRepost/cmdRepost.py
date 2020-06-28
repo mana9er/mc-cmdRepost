@@ -1,4 +1,5 @@
 from PyQt5 import QtCore
+from QtCore import QTimer
 import os
 import time
 import json
@@ -12,8 +13,8 @@ class CmdReposter(QtCore.QObject):
 
     def __init__(self, logger, core, config_file):
         super(CmdReposter, self).__init__(core)
-        self.core = core
         self.logger = logger
+        self.disabled = False
 
         # load config
         self.configs = {}
@@ -25,7 +26,11 @@ class CmdReposter(QtCore.QObject):
             self.logger.warning('config.json not found. Using default settings.')
 
         # connect signals and slots
-        self.core.notifier.sig_input.connect(self.on_player_input)
+        self.utils = core.get_plugin('mcBasicLib')
+        if self.utils is None:
+            self.disabled = True
+        else:
+            self.utils.sig_input.connect(self.on_player_input)
         self.core.sig_server_output.connect(self.on_server_output)
 
         # available commands
@@ -33,20 +38,15 @@ class CmdReposter(QtCore.QObject):
             'tp': self.tp_request,
             # TODO: tphere
             'tps': self.ask_tps,
+            'restart': self.restart_request,
         }
 
         self.tp_log = {}
+
         self.repost_remained = 0
         self.repost_receiver = None
 
-    def server_say(self, text):
-        self.core.write_server('/say {}'.format(text))
-
-    def server_tell(self, player, text):
-        self.core.write_server('/tellraw {} {}'.format(player.name, json.dumps({'text': text, 'color': 'yellow'})))
-
-    def server_warn(self, player, text):
-        self.core.write_server('/tellraw {} {}'.format(player.name, json.dumps({'text': text, 'color': 'red'})))
+        self.timer = QTimer(self)
 
     def check_tp(self, line):
         match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: (.*)$', line)
@@ -65,7 +65,7 @@ class CmdReposter(QtCore.QObject):
             self.logger.debug('CmdReposter.repost_remained = {:d}'.format(self.repost_remained))
             match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: ([^<>]*)$', line)
             if match_obj_1:
-                self.server_tell(self.repost_receiver, match_obj_1.group(1))
+                self.utils.tell(self.repost_receiver, match_obj_1.group(1))
                 self.repost_remained -= 1
 
     def on_server_output(self, lines):
@@ -79,22 +79,15 @@ class CmdReposter(QtCore.QObject):
         text = pair[1]
         text_list = text.split()
 
+        if len(text) == 0:
+            return
+
         if player.is_console():
             return
         
         for cmd in self.cmd_available:
             if text_list[0] == self.cmd_prefix + cmd:
-                try:
-                    self.cmd_available[cmd](player, text_list)
-                except AttributeError as err:
-                    self.logger.error('Fatal: AttributeError raised.')
-                    print(err)
-                    self.server_warn(player, 'cmdRepost internal error raised.')
-                except KeyError as err:
-                    self.logger.error('Fatal: KeyError raised.')
-                    print(err)
-                    self.server_warn(player, 'cmdRepost internal error raised.')
-                
+                self.cmd_available[cmd](player, text_list)
                 break
 
     def tp_request(self, player, text_list):
@@ -114,8 +107,8 @@ class CmdReposter(QtCore.QObject):
         cur_time = time.time()
         if cur_time - self.tp_log[player.name] < tp_cd:
             remain_sec = tp_cd - (cur_time - self.tp_log[player.name])
-            self.server_tell(player, 'Command tp is now cooling down!')
-            self.server_tell(player, 'You cannot use tp again until {:d} seconds later.'.format(int(remain_sec)))
+            self.utils.tell(player, 'Command tp is now cooling down!')
+            self.utils.tell(player, 'You cannot use tp again until {:d} seconds later.'.format(int(remain_sec)))
             return
 
         args = text_list[1:]
@@ -127,7 +120,7 @@ class CmdReposter(QtCore.QObject):
             # tp to coordinate
             self.core.write_server(tp_cmd + '{} {} {}'.format(args[0], args[1], args[2]))
         else:
-            self.server_tell(player, 'Command not acceptable. Please check again.')
+            self.utils.tell(player, 'Command not acceptable. Please check again.')
 
     def ask_tps(self, player, text_list):
         self.logger.debug('CmdReposter.log_tps called')
@@ -143,4 +136,7 @@ class CmdReposter(QtCore.QObject):
                 self.repost_remained = 4  # repost the next messages to player
                 self.repost_receiver = player
         else:
-            self.server_tell(player, 'Command not acceptable. Please check again.')
+            self.utils.tell(player, 'Command not acceptable. Please check again.')
+
+    def restart_request(self, player, text_list):
+        pass
