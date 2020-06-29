@@ -25,13 +25,19 @@ class CmdReposter(QtCore.QObject):
         else:
             self.logger.warning('config.json not found. Using default settings.')
 
-        # connect signals and slots
+        # load mcBasicLib
         self.utils = core.get_plugin('mcBasicLib')
         if self.utils is None:
+            self.logger.error('Failed to load plugin "mcBasicLib", cmdRepost will be disabled.')
+            self.logger.error('Please make sure that "mcBasicLib" has been added to plugins.')
             self.disabled = True
-        else:
-            self.utils.sig_input.connect(self.on_player_input)
-        self.core.sig_server_output.connect(self.on_server_output)
+
+        if self.disabled:
+            return
+        
+        # connect signals and slots
+        self.utils.sig_input.connect(self.on_player_input)
+        core.sig_server_output.connect(self.on_server_output)
 
         # available commands
         self.cmd_available = {
