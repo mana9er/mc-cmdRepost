@@ -1,6 +1,7 @@
 from .cmdRepost import CmdReposter
 
-instance = None
+# list dependencies
+dependencies = ['mcBasicLib']
 
 
 def load(logger, core):
