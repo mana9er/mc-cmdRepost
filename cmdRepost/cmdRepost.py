@@ -75,11 +75,13 @@ class CmdReposter(QtCore.QObject):
                 self.utils.tell(self.repost_receiver, match_obj_1.group(1))
                 self.repost_remained -= 1
 
+    @QtCore.pyqtSlot(list)
     def on_server_output(self, lines):
         for line in lines:
             self.check_tp(line)
             self.check_repost(line)
 
+    @QtCore.pyqtSlot(tuple)
     def on_player_input(self, pair):
         self.logger.debug('CmdReposter.on_player_input called')
         player = pair[0]
