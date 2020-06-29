@@ -84,14 +84,10 @@ class CmdReposter(QtCore.QObject):
     @QtCore.pyqtSlot(tuple)
     def on_player_input(self, pair):
         self.logger.debug('CmdReposter.on_player_input called')
-        player = pair[0]
-        text = pair[1]
+        player, text = pair
         text_list = text.split()
 
         if len(text) == 0:
-            return
-
-        if player.is_console():
             return
         
         for cmd in self.cmd_available:
@@ -133,9 +129,6 @@ class CmdReposter(QtCore.QObject):
 
     def ask_tps(self, player, text_list):
         self.logger.debug('CmdReposter.log_tps called')
-
-        if player.is_console():
-            return
         
         if len(text_list) == 1:
             if 'forge' not in self.configs or not self.configs['forge']:
