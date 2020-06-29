@@ -13,6 +13,7 @@ class CmdReposter(QtCore.QObject):
 
     def __init__(self, logger, core, config_file):
         super(CmdReposter, self).__init__(core)
+        self.core = core
         self.logger = logger
         self.disabled = False
 
@@ -37,7 +38,7 @@ class CmdReposter(QtCore.QObject):
         
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
-        core.sig_server_output.connect(self.on_server_output)
+        self.core.sig_server_output.connect(self.on_server_output)
 
         # available commands
         self.cmd_available = {
