@@ -1,5 +1,5 @@
 from PyQt5 import QtCore
-from QtCore import QTimer
+from PyQt5.QtCore import QTimer
 import os
 import time
 import json
