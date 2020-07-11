@@ -56,7 +56,7 @@ class CmdReposter(QtCore.QObject):
         self.timer = QTimer(self)
 
     def check_tp(self, line):
-        match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: (.*)$', line)
+        match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\].*?: (.*)$', line)
         text = match_obj_1.group(1) if match_obj_1 else ''
         match_obj_2 = re.match(r'^Teleported (\w+)', text)
         if match_obj_2:
@@ -70,7 +70,7 @@ class CmdReposter(QtCore.QObject):
     def check_repost(self, line):
         if self.repost_remained > 0:
             self.logger.debug('CmdReposter.repost_remained = {:d}'.format(self.repost_remained))
-            match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\] \[minecraft/DedicatedServer\]: ([^<>]*)$', line)
+            match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\].*?: ([^<>]*)$', line)
             if match_obj_1:
                 self.utils.tell(self.repost_receiver, match_obj_1.group(1))
                 self.repost_remained -= 1
