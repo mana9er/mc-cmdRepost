@@ -52,8 +52,9 @@ class CmdReposter(QtCore.QObject):
 
         self.tp_log = {}
 
-        self.repost_remained = 0
-        self.repost_receiver = None
+        # queue
+        self.repost_remained = []
+        self.repost_receiver = []
 
         self.timer = QTimer(self)
 
@@ -70,12 +71,18 @@ class CmdReposter(QtCore.QObject):
             self.tp_log[player] = time.time()  # record latest teleported time
 
     def check_repost(self, line):
-        if self.repost_remained > 0:
-            self.logger.debug('CmdReposter.repost_remained = {:d}'.format(self.repost_remained))
-            match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\].*?: ([^<>]*)$', line)
-            if match_obj_1:
-                self.utils.tell(self.repost_receiver, match_obj_1.group(1))
-                self.repost_remained -= 1
+        if len(self.repost_remained) > 0:
+            remain = self.repost_remained[0]
+            if remain > 0:
+                self.logger.debug('CmdReposter.repost_remained = {:d}'.format(remain))
+                match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\].*?: ([^<>]*)$', line)
+                if match_obj_1:
+                    self.utils.tell(self.repost_receiver[0], match_obj_1.group(1))
+                    self.repost_remained[0] -= 1
+            else:
+                del self.repost_remained[0]
+                del self.repost_receiver[0]
+                self.check_repost(line)
 
     @QtCore.pyqtSlot(list)
     def on_server_output(self, lines):
@@ -142,8 +149,8 @@ class CmdReposter(QtCore.QObject):
                 return
             else:
                 self.core.write_server('/forge tps')
-                self.repost_remained = 4  # repost the next messages to player
-                self.repost_receiver = player
+                self.repost_remained.append(4)  # repost the next messages to player
+                self.repost_receiver.append(player)
         else:
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
@@ -154,8 +161,8 @@ class CmdReposter(QtCore.QObject):
         # so len(text_list) must equal to 1
         if len(text_list) == 1:
             self.core.write_server('/time query daytime')
-            self.repost_remained = 1
-            self.repost_receiver = player
+            self.repost_remained.append(1)
+            self.repost_receiver.append(player)
         else:
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
