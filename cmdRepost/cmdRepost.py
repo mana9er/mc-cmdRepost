@@ -46,6 +46,7 @@ class CmdReposter(QtCore.QObject):
             'tp': self.tp_request,
             # TODO: tphere
             'tps': self.ask_tps,
+            'time': self.ask_time,
             'restart': self.restart_request,
         }
 
@@ -134,7 +135,7 @@ class CmdReposter(QtCore.QObject):
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
     def ask_tps(self, player, text_list):
-        self.logger.debug('CmdReposter.log_tps called')
+        self.logger.debug('CmdReposter.ask_tps called')
         
         if len(text_list) == 1:
             if 'forge' not in self.configs or not self.configs['forge']:
@@ -143,6 +144,18 @@ class CmdReposter(QtCore.QObject):
                 self.core.write_server('/forge tps')
                 self.repost_remained = 4  # repost the next messages to player
                 self.repost_receiver = player
+        else:
+            self.utils.tell(player, 'Command not acceptable. Please check again.')
+
+    def ask_time(self, player, text_list):
+        self.logger.debug('CmdReposter.ask_time called')
+
+        # we only allow requesting for daytime by "!time"
+        # so len(text_list) must equal to 1
+        if len(text_list) == 1:
+            self.core.write_server('/time query daytime')
+            self.repost_remained = 1
+            self.repost_receiver = player
         else:
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
