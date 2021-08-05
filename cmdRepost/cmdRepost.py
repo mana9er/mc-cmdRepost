@@ -97,7 +97,7 @@ class CmdReposter(QtCore.QObject):
                 self.cmd_available[cmd](player, text_list)
                 break
 
-    @QtCore.pyqtSlot(tuple)
+    @QtCore.pyqtSlot()
     def on_server_stop(self):
         self.logger.debug('CmdReposter.on_server_stop called')
         self.tp_log.clear()  # clear all tp records
