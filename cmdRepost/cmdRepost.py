@@ -39,6 +39,7 @@ class CmdReposter(QtCore.QObject):
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
         self.core.sig_server_output.connect(self.on_server_output)
+        self.core.sig_server_stop.connect(self.on_server_stop)
 
         # available commands
         self.cmd_available = {
@@ -94,6 +95,11 @@ class CmdReposter(QtCore.QObject):
             if text_list[0] == self.cmd_prefix + cmd:
                 self.cmd_available[cmd](player, text_list)
                 break
+
+    @QtCore.pyqtSlot(tuple)
+    def on_server_stop(self):
+        self.logger.debug('CmdReposter.on_server_stop called')
+        self.tp_log.clear()  # clear all tp records
 
     def tp_request(self, player, text_list):
         self.logger.debug('CmdReposter.tp_request called')
