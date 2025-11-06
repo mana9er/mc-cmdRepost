@@ -47,8 +47,8 @@ class CmdReposter(QtCore.QObject):
             'tp': self.tp_request,
             'tps': self.ask_tps,
             'time': self.ask_time,
-            # 'restart': self.restart_request,
             'here': self.broadcast_pos,
+            'h': self.broadcast_pos,
         }
 
         self.tp_log = {}
