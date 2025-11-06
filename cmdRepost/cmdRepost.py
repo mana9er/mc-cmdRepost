@@ -184,7 +184,7 @@ class CmdReposter(QtCore.QObject):
             else:
                 self.core.write_server('/forge tps')
                 self.repost_remained.append(4)  # repost the next messages to player
-                self.repost_receiver.append(player)
+                self.repost_receiver.append('@a')  # repost to all players
         else:
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
@@ -202,6 +202,7 @@ class CmdReposter(QtCore.QObject):
 
     def broadcast_pos(self, player, text_list):
         self.logger.debug('CmdReposter.broadcast_pos called')
+        player = str(player)
         self.player_pos_map[player] = { 'pos': None, 'dim': None }
         # Reference (CN): https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4/data
         self.core.write_server(f'data get entity {player} Pos')
