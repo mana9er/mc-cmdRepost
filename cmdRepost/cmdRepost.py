@@ -4,6 +4,7 @@ import os
 import time
 import json
 import re
+import math
 
 __all__ = ['CmdReposter']
 
@@ -44,10 +45,10 @@ class CmdReposter(QtCore.QObject):
         # available commands
         self.cmd_available = {
             'tp': self.tp_request,
-            # TODO: tphere
             'tps': self.ask_tps,
             'time': self.ask_time,
-            'restart': self.restart_request,
+            # 'restart': self.restart_request,
+            'here': self.broadcast_pos,
         }
 
         self.tp_log = {}
@@ -55,6 +56,7 @@ class CmdReposter(QtCore.QObject):
         # queue
         self.repost_remained = []
         self.repost_receiver = []
+        self.player_pos_map = {}
 
         self.timer = QTimer(self)
 
@@ -84,11 +86,43 @@ class CmdReposter(QtCore.QObject):
                 del self.repost_receiver[0]
                 self.check_repost(line)
 
+    def check_player_nbt(self, line):
+        match_obj_1 = re.match(r'[^<>]*?\[Server thread/INFO\].*?: (.*)$', line)
+        text = match_obj_1.group(1) if match_obj_1 else ''
+        match_obj_2 = re.match(r'^(\w+) has the following entity data: (.*)$', text)
+        if match_obj_2:
+            # got player entity data
+            player = match_obj_2.group(1)
+            if player not in self.player_pos_map:
+                return
+            match_obj_pos = re.match(r'\[(.*?)d, (.*?)d, (.*?)d\]', match_obj_2.group(2))
+            match_obj_dim = re.match(r'"(minecraft:\w+)"', match_obj_2.group(2))
+            player_nbt = self.player_pos_map[player]
+            if match_obj_pos:
+                player_nbt['pos'] = (
+                    math.floor(float(match_obj_pos.group(1)) + 0.5),  # x
+                    math.ceil(float(match_obj_pos.group(2))),         # y
+                    math.floor(float(match_obj_pos.group(3)) + 0.5),  # z
+                )
+                self.logger.debug('CmdReposter parsed player Pos data: {}'.format(player_nbt['pos']))
+            if match_obj_dim:
+                player_nbt['dim'] = match_obj_dim.group(1)
+                self.logger.debug('CmdReposter parsed player Dimension data: {}'.format(player_nbt['dim']))
+            if player_nbt['pos'] is not None and player_nbt['dim'] is not None:
+                x, y, z = player_nbt['pos']
+                dim = player_nbt['dim']
+                output_string = f'[x:{x}, y:{y}, z:{z}, dim:{dim}]'
+                cmd = f'execute as {player} run say {output_string}'
+                self.logger.debug('CmdReposter generated position broadcast: {}'.format(output_string))
+                self.core.write_server(cmd)
+                del self.player_pos_map[player]
+
     @QtCore.pyqtSlot(list)
     def on_server_output(self, lines):
         for line in lines:
             self.check_tp(line)
             self.check_repost(line)
+            self.check_player_nbt(line)
 
     @QtCore.pyqtSlot(tuple)
     def on_player_input(self, pair):
@@ -166,5 +200,10 @@ class CmdReposter(QtCore.QObject):
         else:
             self.utils.tell(player, 'Command not acceptable. Please check again.')
 
-    def restart_request(self, player, text_list):
-        pass
+    def broadcast_pos(self, player, text_list):
+        self.logger.debug('CmdReposter.broadcast_pos called')
+        self.player_pos_map[player] = { 'pos': None, 'dim': None }
+        # Reference (CN): https://zh.minecraft.wiki/w/%E5%91%BD%E4%BB%A4/data
+        self.core.write_server(f'data get entity {player} Pos')
+        self.core.write_server(f'data get entity {player} Dimension')
+        # Wait for `check_player_nbt`
